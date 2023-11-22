@@ -3,11 +3,8 @@ package com.study.jpa.chap05_practice.entity;
 import lombok.*;
 
 import javax.persistence.*;
-import java.util.ArrayList;
-import java.util.List;
 
-@Setter
-@Getter
+@Setter @Getter
 @ToString(exclude = {"post"})
 @EqualsAndHashCode(of = "id")
 @NoArgsConstructor
@@ -24,21 +21,11 @@ public class HashTag {
 
     private String tagName; // 해시태그 이름
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "post_no")
-    private  Post post;
-
-    @OneToMany(mappedBy = "post")
-    private List<HashTag> hashTags = new ArrayList<>();
-
+    private Post post;
 
 }
-
-
-
-
-
-
 
 
 
