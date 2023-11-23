@@ -5,6 +5,10 @@ import com.study.jpa.chap05_practice.service.PostService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,13 +31,12 @@ public class PostApiController {
 
     // 리소스: 게시물 (Post)
     /*
-        게시물 목록 조회: /posts            - GET, param: (page, size) ?로 쿼리스트링으로 오는것
+        게시물 목록 조회: /posts            - GET, param: (page, size)
         게시물 개별 조회: /posts/{id}       - GET
         게시물 등록:     /posts            - POST, payload: (writer, title, content, hashTags)
         게시물 수정:     /posts            - PUT, PATCH, payload: (title, content, postNo)
         게시물 삭제:     /posts/{id}       - DELETE
      */
-
     private final PostService postService;
 
     @GetMapping
@@ -42,62 +45,66 @@ public class PostApiController {
 
         PostListResponseDTO dto = postService.getPosts(pageDTO);
 
-
         return ResponseEntity.ok().body(dto);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> detail(@PathVariable Long id) {
-
         log.info("/api/v1/posts/{} GET", id);
 
         try {
             PostDetailResponseDTO dto = postService.getDetail(id);
             return ResponseEntity.ok().body(dto);
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.badRequest().body(e.getMessage());
         }
-
-
     }
 
     @Operation(summary = "게시물 작성", description = "게시물 작성을 담당하는 메서드 입니다.")
     @Parameters({
             @Parameter(name = "writer", description = "게시물의 작성자 이름을 쓰세요!", example = "김뽀삐", required = true),
-            @Parameter(name = "title", description = "게시물의 작성자 제목을 쓰세요!", example = "제목제목", required = true),
-            @Parameter(name = "content", description = "게시물의 작성자 내용을 쓰세요!", example = "내용내용"),
-            @Parameter(name = "hashTags", description = "게시물의 작성자 해시태그를 작성하세요!", example = "{'하하', '호호'}"),
+            @Parameter(name = "title", description = "게시물의 제목을 쓰세요!", example = "제목제목", required = true),
+            @Parameter(name = "content", description = "게시물의 내용을 쓰세요!", example = "내용내용"),
+            @Parameter(name = "hashTags", description = "게시물의 해시태그를 작성하세요!", example = "['하하', '호호']")
     })
-    //@RequestBody를 통해 json객체를 java객체로 변환
     @PostMapping
     public ResponseEntity<?> create(
             @Validated @RequestBody PostCreateDTO dto,
             BindingResult result // 검증 에러 정보를 가진 객체
     ) {
-        log.info("/api/v1/posts POST!! - payload:{}", dto);
+        log.info("/api/v1/posts POST!! - payload:{} ", dto);
 
-        if(dto == null){
-            return ResponseEntity.badRequest().body("등록 게시물 정보를 전달해 주세요.");
+        if(dto == null) {
+            return ResponseEntity
+                    .badRequest()
+                    .body("등록 게시물 정보를 전달해 주세요!");
         }
 
         ResponseEntity<List<FieldError>> fieldErrors = getValidatedResult(result);
         if (fieldErrors != null) return fieldErrors;
 
-        // 위에 존재하는 if문을 모두 건너뜀 -> dto가 null도 아니고, 입력값 검증도 모두 통과함. -> service에게 명령.
         try {
+            // 위에 존재하는 if문을 모두 건너뜀 -> dto가 null도 아니고, 입력값 검증도 모두 통과함. -> service에게 명령.
             PostDetailResponseDTO responseDTO = postService.insert(dto);
             return ResponseEntity
                     .ok()
                     .body(responseDTO);
         } catch (Exception e) {
             e.printStackTrace();
-        return ResponseEntity
-                .internalServerError()
-                .body("서버 터짐 원일: " + e.getMessage());
+            return ResponseEntity
+                    .internalServerError()
+                    .body("미안 서버 터짐 원인: " + e.getMessage());
         }
-
     }
 
+
+    @Operation(summary = "게시물 수정", description = "게시물 수정을 담당하는 메서드 입니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "수정 완료!", content = @Content(schema = @Schema(implementation = PostDetailResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "입력값 검증 실패"),
+            @ApiResponse(responseCode = "404", description = "NOT FOUND")
+    })
     // 게시물 수정
     @RequestMapping(method = {RequestMethod.PATCH, RequestMethod.PUT})
     public ResponseEntity<?> update(
@@ -117,10 +124,13 @@ public class PostApiController {
         return ResponseEntity.ok().body(responseDTO);
     }
 
+
+
+
     // 입력값 검증(Validation)의 결과를 처리해 주는 전역 메서드
     private static ResponseEntity<List<FieldError>> getValidatedResult(BindingResult result) {
         if(result.hasErrors()) { // 입력값 검증 단계에서 문제가 있었다면 true
-            List<FieldError> fieldErrors = result.getFieldErrors();// 에러가 하나면 getFieldError 여러개면
+            List<FieldError> fieldErrors = result.getFieldErrors();
             fieldErrors.forEach(err -> {
                 log.warn("invalid client data - {}", err.toString());
             });
@@ -132,14 +142,14 @@ public class PostApiController {
     }
 
     @DeleteMapping("/{id}")
-    public  ResponseEntity<?> delete(@PathVariable Long id) {
-        log.info("/api/v1/posts/{} DELETE!!", id );
+    public ResponseEntity<?> delete(@PathVariable Long id) {
+        log.info("/api/v1/posts/{} DELETE!!", id);
 
         try {
             postService.delete(id);
             return ResponseEntity.ok("DEL SUCCESS!!");
         }
-//        catch (SQLIntegrityConstraintViolationException e){
+//        catch (SQLIntegrityConstraintViolationException e) {
 //            return ResponseEntity.internalServerError()
 //                    .body("해시태그가 달린 게시물은 삭제할 수 없습니다.");
 //        }
@@ -149,10 +159,20 @@ public class PostApiController {
                     .body(e.getMessage());
         }
 
-
     }
 
 
 
 
+
 }
+
+
+
+
+
+
+
+
+
+
